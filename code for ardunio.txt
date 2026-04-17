@@ -1,99 +1,104 @@
-// Robotic Gardener Arduino Code
-// Features: Soil Moisture Check + Obstacle Detection
+// Motor pins
+#define IN1 8
+#define IN2 9
+#define IN3 10
+#define IN4 11
 
-// Pin definitions
-const int moisturePin = A0;       // Soil moisture sensor analog pin
-const int trigPin = 9;            // Ultrasonic sensor trigger
-const int echoPin = 10;           // Ultrasonic sensor echo
+#define ENA 5
+#define ENB 6
 
-// Motor driver pins
-const int motor1Pin1 = 2;         
-const int motor1Pin2 = 3;         
-const int motor2Pin1 = 4;         
-const int motor2Pin2 = 5;         
+// Sensors
+#define IR 2
+#define MOISTURE A0
 
-// Thresholds
-int moistureThreshold = 400;      // Adjust based on calibration
-int obstacleDistance = 20;        // cm
+// LED
+#define LED 3
+
+int speedVal = 210;  // speed
+
+// Moisture calibration (adjust after testing)
+int dryValue = 950;
+int wetValue = 400;
 
 void setup() {
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  pinMode(ENA, OUTPUT);
+  pinMode(ENB, OUTPUT);
+
+  pinMode(IR, INPUT);
+  pinMode(LED, OUTPUT);
+
   Serial.begin(9600);
+}
 
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
+// car
+void forward() {
+  analogWrite(ENA, speedVal);
+  analogWrite(ENB, speedVal);
 
-  pinMode(motor1Pin1, OUTPUT);
-  pinMode(motor1Pin2, OUTPUT);
-  pinMode(motor2Pin1, OUTPUT);
-  pinMode(motor2Pin2, OUTPUT);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
 
-  Serial.println("Robotic Gardener Initialized");
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+// STOP
+void stopCar() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
+
+// TURN RIGHT
+void turnRight() {
+  analogWrite(ENA, speedVal);
+  analogWrite(ENB, speedVal);
+
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
 }
 
 void loop() {
-  // Check soil moisture
-  int moistureValue = analogRead(moisturePin);
-  Serial.print("Moisture Value: ");
-  Serial.println(moistureValue);
+  int obstacle = digitalRead(IR);
+  int moistureVal = analogRead(MOISTURE);
 
-  if (moistureValue < moistureThreshold) {
-    Serial.println("Soil is dry! Needs watering.");
-    // Here you could activate a pump or buzzer
+  // Convert to percentage
+  int moisturePercent = map(moistureVal, dryValue, wetValue, 0, 100);
+  moisturePercent = constrain(moisturePercent, 0, 100);
+
+  //  LED logic (moisture detected)
+  if (moisturePercent > 50) {   // threshold (adjust if needed)
+    digitalWrite(LED, HIGH);   // LED ON
   } else {
-    Serial.println("Soil moisture is sufficient.");
+    digitalWrite(LED, LOW);    // LED OFF
   }
 
-  // Check for obstacles
-  long distance = getDistance();
-  Serial.print("Distance: ");
-  Serial.print(distance);
-  Serial.println(" cm");
+  Serial.print("Moisture %: ");
+  Serial.println(moisturePercent);
 
-  if (distance < obstacleDistance) {
-    Serial.println("Obstacle detected! Stopping.");
-    stopMotors();
-    delay(1000);
-    turnRight();   // Try turning to avoid obstacle
-    delay(1000);
-  } else {
-    moveForward();
+  //  CAR LOGIC
+  if (obstacle == LOW) {
+    stopCar();
+    delay(300);
+
+    turnRight();
+    delay(600);  // adjust for 90°
+
+    stopCar();
+    delay(200);
+  }
+  else {
+    forward();
   }
 
-  delay(500);
-}
-
-// Function to measure distance using ultrasonic sensor
-long getDistance() {
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-
-  long duration = pulseIn(echoPin, HIGH);
-  long distance = duration * 0.034 / 2; // Convert to cm
-  return distance;
-}
-
-// Motor control functions
-void moveForward() {
-  digitalWrite(motor1Pin1, HIGH);
-  digitalWrite(motor1Pin2, LOW);
-  digitalWrite(motor2Pin1, HIGH);
-  digitalWrite(motor2Pin2, LOW);
-}
-
-void stopMotors() {
-  digitalWrite(motor1Pin1, LOW);
-  digitalWrite(motor1Pin2, LOW);
-  digitalWrite(motor2Pin1, LOW);
-  digitalWrite(motor2Pin2, LOW);
-}
-
-void turnRight() {
-  digitalWrite(motor1Pin1, HIGH);
-  digitalWrite(motor1Pin2, LOW);
-  digitalWrite(motor2Pin1, LOW);
-  digitalWrite(motor2Pin2, HIGH);
+  delay(200);
 }
